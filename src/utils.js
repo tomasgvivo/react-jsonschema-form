@@ -483,8 +483,49 @@ export function resolveSchema(schema, definitions = {}, formData = {}) {
   } else if (schema.hasOwnProperty("dependencies")) {
     const resolvedSchema = resolveDependencies(schema, definitions, formData);
     return retrieveSchema(resolvedSchema, definitions, formData);
+  } else if (schema.if || schema.then || schema.else) {
+    // Extract if/then/else and capture the remaining schema to be returned
+    const {
+      if: ifSchema,
+      then: thenSchema,
+      else: elseSchema,
+      ...remainingSchema
+    } = schema;
+    if (isObject(ifSchema)) {
+      // The `if` schema is defined and is an object, validate against it
+      const { errors } = validateFormData(formData, ifSchema);
+      // If the form data validates then use the `then` schema; otherwise the `else` schema
+      const conditionalSchema = errors.length === 0 ? thenSchema : elseSchema;
+      // Merge the conditional schema (or an empty schema if undefined) with the remaining schema
+      const updatedSchema = mergeSchemas(
+        remainingSchema,
+        conditionalSchema || {}
+      );
+      return retrieveSchema(updatedSchema, definitions, formData);
+    } else {
+      // Use the remaining schema without merging anything with it
+      // Note that the remaining schema no longer contains any `then` or `else` schemas
+      // This is important so that and `if` schema that gets merged into the schema
+      // from a schema dependency or another if/then/else does not trigger an
+      // orphaned `then` or `else` schema.
+      return retrieveSchema(remainingSchema, definitions, formData);
+    }
   } else {
-    // No $ref or dependencies attribute found, returning the original schema.
+    /* No $ref, dependencies, or if/then/else attribute found, returning the original schema. */
+    // deep clone the schema before possibly mutating it
+    schema = JSON.parse(JSON.stringify(schema));
+    if (schema.type === "object" && isObject(schema.properties)) {
+      // delete any properties in the formData if their schemas contain
+      // `"not": {}` and remove `not` from any property schemas so that no
+      // attempts are made to render them
+      for (const propertyKey of Object.keys(schema.properties)) {
+        const propertySchema = schema.properties[propertyKey];
+        if (deepEquals(propertySchema.not, {})) {
+          delete formData[propertyKey];
+        }
+        delete propertySchema.not;
+      }
+    }
     return schema;
   }
 }

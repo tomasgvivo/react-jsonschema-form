@@ -22,6 +22,7 @@ import schemaDependencies from "./schemaDependencies";
 import additionalProperties from "./additionalProperties";
 import nullable from "./nullable";
 import nullField from "./null";
+import conditional from "./conditional";
 
 export const samples = {
   Simple: simple,
@@ -43,9 +44,4 @@ export const samples = {
   Alternatives: alternatives,
   "Property dependencies": propertyDependencies,
   "Schema dependencies": schemaDependencies,
-  "Additional Properties": additionalProperties,
-  "Any Of": anyOf,
-  "One Of": oneOf,
-  "Null fields": nullField,
-  Nullable: nullable,
 };
